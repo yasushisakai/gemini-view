@@ -1,0 +1,8 @@
+
+
+
+places to look to put the plist file.
+
+- /System/Library/LaunchAgents
+- /Library/LaunchAgentsLibrary
+- ~/Library/LaunchAgents
