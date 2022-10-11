@@ -18,13 +18,20 @@ impl Model {
         self.index += 1;
         if self.index >= self.images.len() {
             self.index = 0;
-            let mut images: Vec<String> = walk_dir(self.assets.join("images")).into_iter().map(|dir| {
-        let path = dir.unwrap().into_path();
-        format!("{}", path.display())
-    }).filter(|p| p.ends_with(FILENAME))
-        .collect();
+            let mut images: Vec<String> = walk_dir(self.assets.join("images"))
+                .into_iter()
+                .map(|dir| {
+                    let path = dir.unwrap().into_path();
+                    path.to_string_lossy().to_string()
+                })
+                .filter(|p| p.ends_with(FILENAME))
+                .collect();
             images.sort();
-            self.images = images;
+            let past = self.images.len();
+            if past != images.len() {
+                self.images = images;
+                println!("len is now: {}", self.images.len());
+            }
         }
         let img = &self.images[self.index];
         self.texture = wgpu::Texture::from_path(app, img).unwrap();
@@ -37,7 +44,7 @@ fn main() {
 
 fn update(app: &App, model: &mut Model, update: Update) {
     model.interval += update.since_last;
-    if model.interval.as_secs() > 2 {
+    if model.interval.as_millis() > 80 {
         model.interval = Duration::from_secs(0);
         model.inc_image(app);
     }
@@ -49,17 +56,25 @@ fn model(app: &App) -> Model {
 
     let assets = app.assets_path().unwrap();
 
-    let mut images: Vec<String> = walk_dir(assets.join("images")).into_iter().map(|dir| {
-        let path = dir.unwrap().into_path();
-        format!("{}", path.display())
-    }).filter(|p| p.ends_with(FILENAME))
+    let mut images: Vec<String> = walk_dir(assets.join("images"))
+        .into_iter()
+        .map(|dir| {
+            let path = dir.unwrap().into_path();
+            format!("{}", path.display())
+        })
+        .filter(|p| p.ends_with(FILENAME))
         .collect();
 
     images.sort();
 
     let texture = wgpu::Texture::from_path(app, &images[1]).unwrap();
-    let mut model = Model { interval: Duration::from_secs(0),
-        index:0, assets, texture, images };
+    let mut model = Model {
+        interval: Duration::from_secs(0),
+        index: 0,
+        assets,
+        texture,
+        images,
+    };
     model.inc_image(app);
     model
 }
@@ -68,5 +83,12 @@ fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(BLACK);
     let draw = app.draw();
     draw.texture(&model.texture).wh(vec2(1980f32, 1080f32));
+
+    let rate = (model.index as f32) / (model.images.len() as f32);
+    let win = app.window_rect();
+    let width = win.w() * rate;
+    let bar = Rect::from_w_h(width, 3f32).top_left_of(win);
+
+    draw.rect().xy(bar.xy()).wh(bar.wh()).color(YELLOW);
     draw.to_frame(app, &frame).unwrap();
 }
